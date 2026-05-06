@@ -230,11 +230,20 @@ def suggested_training_label(result: dict) -> str:
 
 def get_status(result: dict) -> tuple[str, str]:
     accepted = result.get("is_accepted")
+    needs_manual_review = result.get("needs_manual_review", False)
+    result_class = result.get("class")
+    reason = result.get("reject_reason")
+
     if accepted is True:
-        return "✅ Predicted TRUE", "Suggested folder: `ready_to_send`"
+        return "✅ ACCEPTED", "Suggested folder: `ready_to_send`"
+
+    if needs_manual_review is True:
+        return "👀 MANUAL REVIEW", f"Suggested issue: `{reason or 'manual_review_needed'}`"
+
     if accepted is False:
-        return "❌ Predicted FALSE", f"Suggested issue: `{suggested_training_label(result)}`"
-    return "👀 Manual Review", f"Suggested folder: `{suggested_training_label(result)}`"
+        return "❌ AUTO REJECT", f"Reason: `{reason or result_class}`"
+
+    return "👀 MANUAL REVIEW", f"Suggested issue: `{reason or 'manual_review_needed'}`"
 
 
 def show_result(result: dict):
@@ -258,15 +267,31 @@ def show_result(result: dict):
         st.caption(f"Route: `{routing.get('route_source', '-')}` → `{profile.get('product_key', result.get('product_key', '-'))}`")
 
     with st.expander("Prediction details"):
-        st.json({
-            "routing": routing,
-            "product_profile": profile,
-            "quality_metrics": quality,
-            "color_metrics": color,
-            "defect_metrics": defects,
-            "debug_artifacts": debug_artifacts,
-            "raw_result": result,
-        })
+        debug_view = {
+                "prediction": {
+                    "class": result.get("class"),
+                    "is_accepted": result.get("is_accepted"),
+                    "needs_manual_review": result.get("needs_manual_review"),
+                    "reject_reason": result.get("reject_reason"),
+                    "instruction": result.get("instruction"),
+                    "confidence": result.get("confidence"),
+                },
+                "routing": result.get("routing"),
+                "product": {
+                    "product_key": result.get("product_key"),
+                    "detected_class": result.get("detected_class"),
+                    "profile": result.get("product_profile"),
+                },
+                "crop": result.get("crop"),
+                "quality_metrics": result.get("quality_metrics"),
+                "color_metrics": result.get("color_metrics"),
+                "defect_metrics": result.get("defect_metrics"),
+                "thresholds": result.get("thresholds"),
+                "packaging": result.get("packaging"),
+                "debug_files": result.get("debug_artifacts", {}).get("files"),
+            }
+
+        st.json(debug_view)
 
 
 def analyze_image(image: Image.Image):

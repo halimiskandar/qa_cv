@@ -9,6 +9,7 @@ from services.fresh_rules import decide_fresh_quality
 from services.inference import get_model, resize_image, apply_color_reference_correction, infer_meat_fat_ratio
 from services.debug_artifacts import save_fresh_debug_artifacts
 from services.fallback_fruit_classifier import classify_with_fallback
+from services.segmentation import segment_fruit, crop_to_mask
 
 
 def _find_best_object_box(model, image, detector_classes):
@@ -35,24 +36,19 @@ def _crop_from_box(img_rgb, box):
     img_h, img_w = img_rgb.shape[:2]
 
     if box is None:
-        h, w = img_rgb.shape[:2]
+        img_h, img_w = img_rgb.shape[:2]
 
-        cx1 = int(w * 0.15)
-        cy1 = int(h * 0.15)
-        cx2 = int(w * 0.85)
-        cy2 = int(h * 0.85)
-
-        return img_rgb[cy1:cy2, cx1:cx2], {
+        return img_rgb, {
             "fallback_used": True,
             "confidence": 0.15,
             "detected_class": None,
-            "coverage_ratio": 0.49,
-            "touches_edge": False,
+            "coverage_ratio": 1.0,
+            "touches_edge": True,
             "box": {
-                "x1": cx1,
-                "y1": cy1,
-                "x2": cx2,
-                "y2": cy2,
+                "x1": 0,
+                "y1": 0,
+                "x2": int(img_w),
+                "y2": int(img_h),
             },
         }
 
@@ -113,7 +109,12 @@ def infer_fresh_product(
 
     fallback_result = None
 
-    if (
+    if product_key == "banana":
+        if detected_class is None:
+            detected_class = "banana"
+            confidence = 0.15
+
+    elif (
         detected_class is None
         or confidence < 0.50
     ):
@@ -122,7 +123,34 @@ def infer_fresh_product(
         detected_class = fallback_result["product_key"]
         confidence = fallback_result["confidence"]
 
-    crop, crop_meta = _crop_from_box(img, best_box)
+    # Try YOLO segmentation first
+    seg = segment_fruit(
+        img,
+        expected_class=None,
+        conf=0.25
+    )
+
+    if seg is not None:
+        crop, crop_mask = crop_to_mask(img, seg["mask"])
+        crop = crop.copy()
+        crop[crop_mask == 0] = [255, 255, 255]
+
+        crop_meta = {
+            "fallback_used": False,
+            "confidence": seg["confidence"],
+            "detected_class": seg.get("detected_class") or seg.get("class_name"),
+            "coverage_ratio": float((seg["mask"] > 0).sum() / (img.shape[0] * img.shape[1])),
+            "touches_edge": False,
+            "segmentation_used": True,
+        }
+
+        confidence = seg["confidence"]
+        detected_class = seg["detected_class"]
+
+    else:
+        # fallback to old YOLO box crop
+        crop, crop_meta = _crop_from_box(img, best_box)
+        crop_meta["segmentation_used"] = False
     if crop.size == 0:
         return {
             "product_key": product_key,
@@ -139,6 +167,7 @@ def infer_fresh_product(
         coverage_ratio=crop_meta["coverage_ratio"],
         touches_edge=crop_meta["touches_edge"],
         fallback_used=crop_meta["fallback_used"],
+        product_cfg=product_cfg,
     )
     if save_debug is None:
         save_debug = os.getenv("SAVE_DEBUG_ARTIFACTS", "false").lower() == "true"
