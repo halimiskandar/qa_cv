@@ -106,7 +106,7 @@ PRODUCT_CONFIG = {
         "training_labels": TRAINING_LABELS,
         "prediction_map": PREDICTION_TO_TRAINING_LABEL,
         "reject_map": REJECT_REASON_TO_TRAINING_LABEL,
-        "use_fresh_pipeline": True,
+        "use_fresh_pipeline": False,
     },
     "apple": {
         "model_type": "banana_ripeness",  # replace with your multi-item detector when ready

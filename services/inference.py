@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 from services.model_registry import get_active_model_config
+import cv2.aruco as aruco
 
 
 _MODEL_CACHE = {}
@@ -71,17 +72,42 @@ def run_inference(model_type: str, image: Image.Image):
 
 
 def get_reference_card_box(img_rgb):
-    """
-    MVP assumption:
-    Color card is always placed in bottom-left corner of image.
-    Adjust these ratios if your card position is different.
-    """
-    h, w = img_rgb.shape[:2]
+    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
 
-    x1 = int(w * 0.03)
-    y1 = int(h * 0.72)
-    x2 = int(w * 0.33)
-    y2 = int(h * 0.97)
+    aruco_dict = aruco.getPredefinedDictionary(
+        aruco.DICT_4X4_50
+    )
+
+    detector_params = aruco.DetectorParameters()
+
+    corners, ids, _ = aruco.detectMarkers(
+        gray,
+        aruco_dict,
+        parameters=detector_params
+    )
+
+    if ids is None or len(corners) == 0:
+        return None
+
+    marker_points = corners[0][0]
+
+    xs = marker_points[:, 0]
+    ys = marker_points[:, 1]
+
+    marker_x1 = int(xs.min())
+    marker_y1 = int(ys.min())
+    marker_x2 = int(xs.max())
+    marker_y2 = int(ys.max())
+
+    marker_w = marker_x2 - marker_x1
+    marker_h = marker_y2 - marker_y1
+
+    # assume color card is RIGHT of marker
+    x1 = marker_x2 + int(marker_w * 0.3)
+    y1 = marker_y1
+
+    x2 = x1 + int(marker_w * 6)
+    y2 = y1 + int(marker_h * 2.8)
 
     return x1, y1, x2, y2
 
@@ -136,7 +162,14 @@ def apply_color_reference_correction(img_rgb, use_reference_card=True):
         }
 
     try:
-        x1, y1, x2, y2 = get_reference_card_box(img_rgb)
+        ref_box = get_reference_card_box(img_rgb)
+        if ref_box is None:
+            return img_rgb, {
+                "reference_used": False,
+                "reason": "aruco_marker_not_found"
+            }
+
+        x1, y1, x2, y2 = ref_box
         ref_crop = img_rgb[y1:y2, x1:x2]
 
         if ref_crop.size == 0:
@@ -682,15 +715,9 @@ def infer_generic_fresh(model, image: Image.Image):
 
     gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
 
-    hsv_glare = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)
+    glare_mask = gray > 245
+    glare_ratio = glare_mask.sum() / glare_mask.size
 
-    glare_mask = cv2.inRange(
-        hsv_glare,
-        (0, 0, 245),
-        (180, 35, 255)
-    )
-
-    glare_ratio = glare_mask.sum() / 255 / glare_mask.size
     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
 
     hsv = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)

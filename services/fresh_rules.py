@@ -44,8 +44,17 @@ def decide_fresh_quality(product_key, product_cfg, quality, color, defect):
             return _result("almost_ripe", None, "mixed_ripeness", None, quality_warning, thresholds)
 
     elif profile == "leafy_veg":
-        if yellow > thresholds.get("yellowing_max", 0.12):
-            return _result("reject", False, "leaf_yellowing", None, quality_warning, thresholds)
+        yellow_leaf = color.get("yellow_leaf_ratio", 0)
+        brown_leaf = color.get("brown_leaf_ratio", 0)
+        black_leaf = color.get("black_leaf_ratio", 0)
+
+        if (
+            yellow_leaf > thresholds.get("yellowing_max", 0.12)
+            or brown_leaf > thresholds.get("brown_leaf_max", 0.08)
+            or black_leaf > thresholds.get("black_leaf_max", 0.04)
+        ):
+            return _result("reject", False, "leaf_spoilage_detected", None, quality_warning, thresholds)
+
         return _result("ready_to_send", True, None, None, quality_warning, thresholds)
 
     else:  # generic bruise model for apple/tomato/etc.

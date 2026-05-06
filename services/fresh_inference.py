@@ -8,6 +8,7 @@ from services.fresh_features import compute_quality_metrics, compute_color_featu
 from services.fresh_rules import decide_fresh_quality
 from services.inference import get_model, resize_image, apply_color_reference_correction, infer_meat_fat_ratio
 from services.debug_artifacts import save_fresh_debug_artifacts
+from services.fallback_fruit_classifier import classify_with_fallback
 
 
 def _find_best_object_box(model, image, detector_classes):
@@ -34,13 +35,25 @@ def _crop_from_box(img_rgb, box):
     img_h, img_w = img_rgb.shape[:2]
 
     if box is None:
-        return img_rgb, {
+        h, w = img_rgb.shape[:2]
+
+        cx1 = int(w * 0.15)
+        cy1 = int(h * 0.15)
+        cx2 = int(w * 0.85)
+        cy2 = int(h * 0.85)
+
+        return img_rgb[cy1:cy2, cx1:cx2], {
             "fallback_used": True,
             "confidence": 0.15,
             "detected_class": None,
-            "coverage_ratio": 1.0,
-            "touches_edge": True,
-            "box": {"x1": 0, "y1": 0, "x2": img_w, "y2": img_h},
+            "coverage_ratio": 0.49,
+            "touches_edge": False,
+            "box": {
+                "x1": cx1,
+                "y1": cy1,
+                "x2": cx2,
+                "y2": cy2,
+            },
         }
 
     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
@@ -97,6 +110,17 @@ def infer_fresh_product(
         corrected_image,
         product_cfg.get("detector_classes", []),
     )
+
+    fallback_result = None
+
+    if (
+        detected_class is None
+        or confidence < 0.50
+    ):
+        fallback_result = classify_with_fallback(image)
+
+        detected_class = fallback_result["product_key"]
+        confidence = fallback_result["confidence"]
 
     crop, crop_meta = _crop_from_box(img, best_box)
     if crop.size == 0:
@@ -173,6 +197,7 @@ def infer_fresh_product(
             "max_dark_cluster_ratio": decision["thresholds"].get("max_dark_cluster_ratio"),
             "max_dark_cluster_count": decision["thresholds"].get("max_dark_cluster_count"),
         },
+        "fallback_classifier": fallback_result,
         "thresholds": decision["thresholds"],
         "crop": crop_meta,
         "note": "generic fresh QA: YOLO product detection + shared color/defect features + product-specific config rules",

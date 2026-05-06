@@ -23,6 +23,9 @@ def compute_quality_metrics(crop_rgb, coverage_ratio, touches_edge, fallback_use
 
 def build_hsv_masks(crop_rgb, product_cfg, plastic_mode):
     hsv = cv2.cvtColor(crop_rgb, cv2.COLOR_RGB2HSV)
+    yellow_leaf_mask = cv2.inRange(hsv, (18, 40, 40), (40, 255, 255))
+    brown_leaf_mask = cv2.inRange(hsv, (5, 35, 20), (30, 255, 120))
+    black_leaf_mask = cv2.inRange(hsv, (0, 0, 0), (180, 255, 45))
     cfg = product_cfg["plastic" if plastic_mode == "with_plastic" else "no_plastic"]
 
     yellow_range = cfg.get("yellow_hsv", ((18, 45, 50), (38, 255, 255)))
@@ -38,11 +41,27 @@ def build_hsv_masks(crop_rgb, product_cfg, plastic_mode):
     brown_mask = cv2.inRange(hsv, (5, 40, 35), (30, 255, 120))
     brown_black_mask = cv2.bitwise_or(dark_mask, brown_mask)
 
-    kernel = np.ones((5, 5), np.uint8)
+    surface_cfg = product_cfg.get("surface", {})
+
+    kernel_size = surface_cfg.get("morph_kernel", 5)
+
+    kernel = np.ones(
+        (kernel_size, kernel_size),
+        np.uint8
+    )
     brown_black_mask = cv2.morphologyEx(brown_black_mask, cv2.MORPH_OPEN, kernel)
     brown_black_mask = cv2.morphologyEx(brown_black_mask, cv2.MORPH_CLOSE, kernel)
 
-    return yellow_mask, green_mask_1, green_mask_2, green_mask, brown_black_mask
+    return (
+    yellow_mask,
+    green_mask_1,
+    green_mask_2,
+    green_mask,
+    brown_black_mask,
+    yellow_leaf_mask,
+    brown_leaf_mask,
+    black_leaf_mask,
+)
 
 
 def remove_logo_from_masks(crop_rgb, yellow_mask, green_mask, brown_black_mask):
@@ -79,7 +98,16 @@ def get_dark_cluster_metrics(brown_black_mask, valid_pixels):
 
 
 def compute_color_features(crop_rgb, product_cfg, plastic_mode, return_debug_masks=False):
-    yellow_mask, green_mask_1, green_mask_2, green_mask, brown_black_mask = build_hsv_masks(crop_rgb, product_cfg, plastic_mode)
+    (
+    yellow_mask,
+    green_mask_1,
+    green_mask_2,
+    green_mask,
+    brown_black_mask,
+    yellow_leaf_mask,
+    brown_leaf_mask,
+    black_leaf_mask,
+    ) = build_hsv_masks(crop_rgb, product_cfg, plastic_mode)
 
     sticker_mask = np.zeros_like(yellow_mask)
     if product_cfg.get("remove_sticker", False):
@@ -92,6 +120,9 @@ def compute_color_features(crop_rgb, product_cfg, plastic_mode, return_debug_mas
     sticker_ratio = sticker_pixels / total_pixels if total_pixels > 0 else 0
     valid_pixels = max(total_pixels - sticker_pixels, 1)
 
+    yellow_leaf_ratio = yellow_leaf_mask.sum() / 255 / valid_pixels
+    brown_leaf_ratio = brown_leaf_mask.sum() / 255 / valid_pixels
+    black_leaf_ratio = black_leaf_mask.sum() / 255 / valid_pixels
     yellow_ratio = yellow_mask.sum() / 255 / valid_pixels
     green_ratio = green_mask.sum() / 255 / valid_pixels
     brown_black_ratio = brown_black_mask.sum() / 255 / valid_pixels
@@ -105,6 +136,9 @@ def compute_color_features(crop_rgb, product_cfg, plastic_mode, return_debug_mas
             "green_ratio_normal": float(green_mask_1.sum() / 255 / valid_pixels),
             "green_ratio_plastic": float(green_mask_2.sum() / 255 / valid_pixels),
             "brown_black_ratio": float(brown_black_ratio),
+            "yellow_leaf_ratio": float(yellow_leaf_ratio),
+            "brown_leaf_ratio": float(brown_leaf_ratio),
+            "black_leaf_ratio": float(black_leaf_ratio),
         },
         "object_masks": {
             "sticker_detected": bool(sticker_ratio > 0.01),

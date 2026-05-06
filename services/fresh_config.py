@@ -7,7 +7,8 @@ Design:
 """
 
 FRESH_PRODUCT_CONFIG = {
-    "banana": {
+   
+        "banana": {
         "display_name": "Banana",
         "detector_classes": ["banana"],
         "use_reference_card": True,
@@ -25,6 +26,8 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_ratio": 0.015,
             "max_dark_cluster_count": 5,
             "cluster_reject_brown_ratio": 0.055,
+            "brown_leaf_max": 0.08,
+            "black_leaf_max": 0.04,
         },
         "no_plastic": {
             "yellow_hsv": ((18, 50, 50), (38, 255, 255)),
@@ -37,7 +40,16 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_ratio": 0.020,
             "max_dark_cluster_count": 5,
             "cluster_reject_brown_ratio": 0.055,
+            "brown_leaf_max": 0.08,
+            "black_leaf_max": 0.04,
         },
+        "surface": {
+        "glare_sensitive": False,
+        "porous": False,
+        "speckled": False,
+        "texture_detector": False,
+        "morph_kernel": 5,
+    },
     },
     "apple": {
         "display_name": "Apple",
@@ -58,6 +70,13 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_count": 4,
             "cluster_reject_brown_ratio": 0.040,
         },
+        "surface": {
+            "glare_sensitive": True,
+            "porous": False,
+            "speckled": False,
+            "texture_detector": False,
+            "morph_kernel": 5,
+        },
     },
     "tomato": {
         "display_name": "Tomato",
@@ -77,6 +96,13 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_ratio": 0.015,
             "max_dark_cluster_count": 3,
             "cluster_reject_brown_ratio": 0.035,
+        },
+        "surface": {
+            "glare_sensitive": True,
+            "porous": False,
+            "speckled": False,
+            "texture_detector": False,
+            "morph_kernel": 5,
         },
     },
     "leafy_veg": {
@@ -100,6 +126,13 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_count": 4,
             "cluster_reject_brown_ratio": 0.030,
         },
+        "surface": {
+            "glare_sensitive": False,
+            "porous": False,
+            "speckled": False,
+            "texture_detector": False,
+            "morph_kernel": 3,
+        },
     },
     "generic_fruit": {
         "display_name": "Generic Fruit",
@@ -119,6 +152,13 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_ratio": 0.018,
             "max_dark_cluster_count": 4,
             "cluster_reject_brown_ratio": 0.040,
+        },
+        "surface": {
+            "glare_sensitive": False,
+            "porous": True,
+            "speckled": True,
+            "texture_detector": True,
+            "morph_kernel": 3,
         },
     },
     "generic_soft_fruit": {
@@ -182,7 +222,46 @@ FRESH_PRODUCT_CONFIG = {
             "max_dark_cluster_count": 4,
             "cluster_reject_brown_ratio": 0.040,
         },
+        "surface": {
+            "glare_sensitive": True,
+            "porous": False,
+            "speckled": False,
+            "texture_detector": False,
+            "morph_kernel": 5,
+        },
     },
+    "asian_pear": {
+    "display_name": "Asian Pear",
+    "detector_classes": ["pear"],
+
+    "use_reference_card": True,
+    "remove_sticker": True,
+
+    "decision_profile": "generic_bruise",
+    "generic_family": "fruit",
+
+    "plastic": {
+        "reject_brown_threshold": 0.12,
+        "max_dark_cluster_ratio": 0.035,
+        "max_dark_cluster_count": 8,
+        "cluster_reject_brown_ratio": 0.050,
+    },
+
+    "no_plastic": {
+        "reject_brown_threshold": 0.14,
+        "max_dark_cluster_ratio": 0.045,
+        "max_dark_cluster_count": 10,
+        "cluster_reject_brown_ratio": 0.055,
+    },
+
+    "surface": {
+        "glare_sensitive": False,
+        "porous": True,
+        "speckled": True,
+        "texture_detector": True,
+        "morph_kernel": 3,
+    },
+},
 }
 
 # COCO / common detector classes mapped into fresh QA profiles.
@@ -204,6 +283,7 @@ PRODUCT_NAME_KEYWORDS = {
     "banana": ["banana", "pisang"],
     "apple": ["apple", "apel"],
     "tomato": ["tomato", "tomat"],
+    "asian_pear": ["asian pear","pear","pir","singo pear","korean pear"],
     "leafy_veg": ["lettuce", "selada", "spinach", "bayam", "kangkung", "sawi", "cabbage", "kol", "broccoli", "brokoli"],
     "generic_fruit": ["orange", "jeruk", "pear", "pir", "mango", "mangga", "dragon fruit", "buah naga"],
     "generic_fresh": ["fresh", "buah", "sayur", "vegetable", "fruit"],
