@@ -1,0 +1,21 @@
+{
+  "banana_ripeness": {
+    "model_version": "banana_rule_v1",
+    "model_path": "models/yolov8n.pt",
+    "model_type": "rule",
+    "confidence_threshold": 0.3
+  },
+  "meat_fat_ratio": {
+    "model_version": "meat_rule_v1",
+    "model_path": "models/yolov8n.pt",
+    "model_type": "rule",
+    "confidence_threshold": 0.3
+  },
+  "fresh_generic": {
+    "model_type": "rule",
+    "model_path": "models/yolov8n.pt",
+    "model_version": "v1",
+    "confidence_threshold": 0.25
+  }
+
+}

@@ -1,0 +1,10 @@
+.env
+service_account.json
+data/
+__pycache__/
+*.pyc
+GOOGLE_SERVICE_ACCOUNT_FILE=service_account.json
+.env.example
+credentials.json
+service_account.json
+token.json

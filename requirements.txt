@@ -1,0 +1,12 @@
+streamlit>=1.49.0
+ultralytics==8.2.0
+torch>=2.5.1
+torchvision>=0.15.0
+pillow
+opencv-python-headless
+numpy
+python-dotenv
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
